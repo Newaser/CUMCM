@@ -25,6 +25,7 @@ plot3(Nodes.Pos(1:end, 1), Nodes.Pos(1:end, 2), Nodes.Pos(1:end, 3), ...
 
 %draw the center point
 plot3(0, 0, 0, 'or', 'markersize', 2);
+text(0, 10, 0, 'C', 'color', 'r');
 
 %draw the light source
 [s1, s2, s3] = drawSource(alpha, beta, 200, 1.5);
@@ -123,6 +124,7 @@ function [x, y, z] = drawSource(a, b, r, k)
     b_ = b*pi/180;
     [x, y, z] = sph2cart(a_, b_, r);
     plot3(x, y, z, '.y', 'markersize', 15);
+    text(x, y+10, z, 'S', 'color', 'y');
     line([x -k*x], [y -k*y], [z, -k*z],'color', 'y', 'LineStyle', '--');
 end
 
@@ -141,8 +143,11 @@ function drawFeedbackCabin(S, r, r_cabin)
     eqn2 = y == k*S(2);
     eqn3 = z == k*S(3);
     eqn4 = x^2 + y^2 + z^2 == r^2;
-    Sol = solve([eqn1 eqn2 eqn3 eqn4], [x y z k], 'ReturnConditions', true);
-    drawCircle(S, r_cabin, [Sol.x, Sol.y, Sol.z]);
+    Sol = solve([eqn1 eqn2 eqn3 eqn4], [x y z k]);
+    cabinCenter = [Sol.x, Sol.y, Sol.z];
+    drawCircle(S, r_cabin, cabinCenter);
+    text(Sol.x, Sol.y+10, Sol.z, 'Feedback Cabin', 'color', 'b', ...
+        'FontSize', 6, 'FontWeight', 'bold');
 end
 
 function drawCircle(n, r, c)
