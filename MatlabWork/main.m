@@ -6,6 +6,7 @@ global Reflectors;
 importData('..\Problems\A\附件1.csv', '..\Problems\A\附件2.csv', ...
     '..\Problems\A\附件3.csv');
 
+%% PRETREATMENT PART
 %pre-definition
 R = 300;
 F = 0.466*R;
@@ -16,12 +17,36 @@ beta_degree = 90;
 % beta_degree = 78.169;
 r_cabin = 0.5;
 
-%pretreatment
+%pre-caculate
 node_num = length(Nodes.ID);
 alpha = alpha_degree*pi/180;
 beta = beta_degree*pi/180;
 
+%% Caculation Part
+% About FAST
+getFASTSphCenter();
+getFASTCaliberCenter();
+getFASTCaliberCircle();
+
+% About Light Source
+getSourcePoint();
+getProjectionPoint();
+
+% About Feedback Cabin
+getCabinCenter();
+getCabinDisk();
+
+% About Paraboloid
+getParaCaliberCenter();
+getParaCaliberCircle();
+getOptPara();
+
+
+%% Graphic Plot Part
 hold on
+draw
+drawNodes();
+
 %draw all the nodes
 plot3(Nodes.Pos(1:end, 1), Nodes.Pos(1:end, 2), Nodes.Pos(1:end, 3), ...
     '.k', 'markersize', 8);
@@ -75,7 +100,9 @@ drawFeedbackCabin(sourceCenter, r, r_cabin);
 
 %draw the paraboliod
 drawPara(R, F, alpha, beta, caliberCenter);
+%% 
 
+%% 
 function importData(filepath1, filepath2, filepath3)
     global Nodes;
     global Actuators;
@@ -245,4 +272,5 @@ function [X, Y, Z] = curveTrans(X, Y, Z, direction, distance)
     Y = Y + delta(2);
     Z = Z + delta(3);
 end
+%% 
 
