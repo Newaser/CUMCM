@@ -25,36 +25,50 @@ beta = beta_degree*pi/180;
 
 %% Caculation Part
 % About FAST
-getFASTSphCenter();
-getFASTCaliberCenter();
-getFASTCaliberCircle();
+    getFASTSphCenter();
+    getFASTCaliberCenter();
+    getFASTCaliberCircle();
 
 % About Light Source
-getSourcePoint();
-getProjectionPoint();
+    getSourcePoint();
+    getProjectionPoint();
 
 % About Feedback Cabin
-getCabinCenter();
-getCabinDisk();
+    getCabinCenter();
+    getCabinDisk();
 
 % About Paraboloid
-getParaCaliberCenter();
-getParaCaliberCircle();
-getOptPara();
+    getParaCaliberCenter();
+    getParaCaliberCircle();
+    getOptPara();
 
 
 %% Graphic Plot Part
 hold on
 % About Components
-drawNodes();
-drawActuators();
-drawTiedownCables();
-drawReflectors();
+    drawNodes();
+    drawActuators();
+    drawTiedownCables();
+    drawReflectors();
 
 % About FAST
-drawFASTSphCenter();
-% getFASTCaliberCenter();
-getFASTCaliberCircle();
+    drawFASTSphCenter();
+    % drawFASTCaliberCenter();
+    drawFASTCaliberCircle();
+
+% About Light Source
+    drawSourcePoint();
+    % drawProjectionPoint();
+    drawLightPath();
+
+% About Feedback Cabin
+    % drawCabinCenter();
+    drawCabinDisk();
+    
+% About Paraboloid
+    drawParaCaliberCenter();
+    drawParaCaliberCircle();
+    drawOptPara();
 
 %draw all the nodes
 plot3(Nodes.Pos(1:end, 1), Nodes.Pos(1:end, 2), Nodes.Pos(1:end, 3), ...

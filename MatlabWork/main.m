@@ -8,17 +8,19 @@ importData('..\Problems\A\附件1.csv', '..\Problems\A\附件2.csv', ...
     '..\Problems\A\附件3.csv');
 
 %% PRETREATMENT PART
-% pre-definition
+% Pre-definition
 R = 300;
+R_FAST = 500*0.5;
 F = 0.466*R;
 r = R-F;
 alpha_degree = 0;
 beta_degree = 90;
 % alpha_degree = 36.795;
 % beta_degree = 78.169;
-r_cabin = 0.5;
+r_cabin = 1*0.5;
+sourceDist = 200;
 
-% pre-caculate
+% Pre-caculate
 node_num = length(Nodes.ID);
 alpha = alpha_degree*pi/180;
 beta = beta_degree*pi/180;
@@ -28,104 +30,58 @@ beta = beta_degree*pi/180;
     getFASTSphCenter();
     getFASTCaliberCenter();
     getFASTCaliberCircle();
+    [X_VS, Y_VS, Z_VS] = getVirtualSphere(R, R_FAST);
 
 % About Light Source
-    getSourcePoint();
-    getProjectionPoint();
+    [x_S, y_S, z_S] = getSourcePoint(alpha, beta, sourceDist);
+    [x_Proj, y_Proj, z_Proj] = getProjectionPoint([x_S, y_S, z_S], R);
 
 % About Feedback Cabin
-    getCabinCenter();
-    getCabinDisk();
+    [x_cabC, y_cabC, z_cabC] = getCabinCenter([x_S, y_S, z_S], r);
+    [X_cabCir, Y_cabCir, Z_cabCir] = ...
+        getCabinCircle([x_cabC, y_cabC, z_cabC], [x_S, y_S, z_S], r_cabin);
+    [X_cabD, Y_cabD, Z_cabD] = ...
+        getCabinDisk([x_cabC, y_cabC, z_cabC], alpha, beta, r_cabin);
 
 % About Paraboloid
-    getParaCaliberCenter();
-    getParaCaliberCircle();
-    getOptPara();
+    [x_PClbC, y_PClbC, z_PClbC] = getParaCaliberCenter(alpha, beta, R);
+    [X_PClbCir, Y_PClbCir, Z_PClbCir] = ...
+        getParaCaliberCircle([x_PClbC, y_PClbC, z_PClbC], R/2);
+    [X_optP, Y_optP, Z_optP] = ...
+        getOptPara(R, F, [x_PClbC, y_PClbC, z_PClbC]);
 
 
 %% Graphic Plot Part
 hold on
 % About Components
     drawNodes();
-    drawActuators();
-    drawTiedownCables();
-    drawReflectors();
+    drawActuators(node_num);
+    drawTiedownCables(node_num);
+    % drawReflectors(node_num); % Warning: ...
 
 % About FAST
     drawFASTSphCenter();
     % drawFASTCaliberCenter();
     drawFASTCaliberCircle();
+    % drawVirtualSphere(X_VS, Y_VS, Z_VS);
 
 % About Light Source
-    drawSourcePoint();
+    drawSourcePoint(x_S, y_S, z_S);
     % drawProjectionPoint();
-    drawLightPath();
+    drawLightPath([x_S, y_S, z_S], [x_Proj, y_Proj, z_Proj]);
 
 % About Feedback Cabin
     % drawCabinCenter();
-    drawCabinDisk();
+    drawCabinCircle(X_cabCir, Y_cabCir, Z_cabCir);
+    % drawCabinDisk(X_cabD, Y_cabD, Z_cabD);    % Bad Method
     
 % About Paraboloid
-    drawParaCaliberCenter();
-    drawParaCaliberCircle();
-    drawOptPara();
-
-%draw all the nodes
-plot3(Nodes.Pos(1:end, 1), Nodes.Pos(1:end, 2), Nodes.Pos(1:end, 3), ...
-    '.k', 'markersize', 8);
-
-%draw the center point
-plot3(0, 0, 0, 'or', 'markersize', 2);
-text(0, 10, 0, 'C', 'color', 'r');
-
-%draw the light source
-[x, y, z] = drawSource(alpha, beta, 200, 1.5);
-sourceCenter = [x, y, z];
-
-%draw all the Actuators
-for i = 1:node_num
-    x = [Actuators.TopPos(i, 1), Actuators.BottomPos(i, 1)];
-    y = [Actuators.TopPos(i, 2), Actuators.BottomPos(i, 2)];
-    z = [Actuators.TopPos(i, 3), Actuators.BottomPos(i, 3)];
-    line(x, y, z, 'color', '#333333', 'LineWidth', 5);
-end
-
-%draw all the Tie-down cables
-for i = 1:node_num
-    x = [Actuators.TopPos(i, 1), Nodes.Pos(i, 1)];
-    y = [Actuators.TopPos(i, 2), Nodes.Pos(i, 2)];
-    z = [Actuators.TopPos(i, 3), Nodes.Pos(i, 3)];
-    line(x, y, z, 'color', '#A2A2A2');
-end
-
-%draw all the reflectors
-% for i = 1:length(Reflectors)
-%     vertexes = zeros(3,3);
-%     for j = 1:node_num
-%         for k = 1:3
-%             if strcmp(Reflectors(i, k), Nodes.ID(j))
-%                 vertexes(k,:) = Nodes.Pos(j, :);
-%             end 
-%         end
-%     end
-%     drawTriangle(vertexes);
-% end
-
-%draw focal hemisphere
-% drawFocalHemi(r);
-
-%draw feedback cabin
-drawFeedbackCabin(sourceCenter, r, r_cabin);
-
-%draw the caliber circle
- [x, y, z] = drawCaliber(alpha, beta, R);
- caliberCenter = [x, y, z];
-
-%draw the paraboliod
-drawPara(R, F, alpha, beta, caliberCenter);
-%% 
-
-%% 
+    % drawParaCaliberCenter();
+    drawParaCaliberCircle(X_PClbCir, Y_PClbCir, Z_PClbCir);
+    drawOptPara(X_optP, Y_optP, Z_optP);
+    
+%% FUNCTION PART
+%% About Components
 function importData(filepath1, filepath2, filepath3)
     global Nodes;
     global Actuators;
@@ -158,86 +114,197 @@ function importData(filepath1, filepath2, filepath3)
     opts.DataLines = [2, inf];
     opts.SelectedVariableNames = [1:3];
     Reflectors = readmatrix(filepath3, opts);
-
-    % disp(Nodes);
-    % disp(Actuators);
-    % disp(Reflectors);
-    % disp(Nodes.ID);
-    % disp(Nodes.Pos);
-    % disp(Nodes.ID);
-    % disp(Actuators.ID);
-    % disp(Actuators.BottomPos);
-    % disp(Actuators.TopPos);
 end
-
-function drawTriangle(vertexes)
-    for i = 1:3
-        x = [vertexes(i,1), vertexes(rem(i, 3) + 1,1)];
-        y = [vertexes(i,2), vertexes(rem(i, 3) + 1,2)];
-        z = [vertexes(i,3), vertexes(rem(i, 3) + 1,3)];
-        line(x, y, z, 'color', 'k');
+function drawNodes()
+    global Nodes;
+    plot3(Nodes.Pos(1:end, 1), Nodes.Pos(1:end, 2), Nodes.Pos(1:end, 3),...
+        '.k', 'markersize', 8);
+end
+function drawActuators(node_num)
+    global Actuators;
+    for i = 1:node_num
+        x = [Actuators.TopPos(i, 1), Actuators.BottomPos(i, 1)];
+        y = [Actuators.TopPos(i, 2), Actuators.BottomPos(i, 2)];
+        z = [Actuators.TopPos(i, 3), Actuators.BottomPos(i, 3)];
+        line(x, y, z, 'color', '#333333', 'LineWidth', 5);
     end
 end
+function drawTiedownCables(node_num)
+    global Nodes;
+    global Actuators;
+    for i = 1:node_num
+        x = [Actuators.TopPos(i, 1), Nodes.Pos(i, 1)];
+        y = [Actuators.TopPos(i, 2), Nodes.Pos(i, 2)];
+        z = [Actuators.TopPos(i, 3), Nodes.Pos(i, 3)];
+        line(x, y, z, 'color', '#A2A2A2');
+    end
+end
+function drawReflectors(node_num)
+    global Nodes;
+    global Reflectors;
+    for i = 1:length(Reflectors)
+        verts = zeros(3,3);
+        for j = 1:node_num
+            for k = 1:3
+                if strcmp(Reflectors(i, k), Nodes.ID(j))
+                    verts(k,:) = Nodes.Pos(j, :);
+                end 
+            end
+        end
+        drawTriangle(verts);
+    end
+    
+    function drawTriangle(vertexes)
+        for edge = 1:3
+            x = [vertexes(edge,1), vertexes(rem(edge, 3) + 1,1)];
+            y = [vertexes(edge,2), vertexes(rem(edge, 3) + 1,2)];
+            z = [vertexes(edge,3), vertexes(rem(edge, 3) + 1,3)];
+            line(x, y, z, 'color', 'k');
+        end
+    end
+end
+%% About FAST
+%   GETs
+function [x, y, z] = getFASTSphCenter()
+    x = 0;  y = 0;   z = 0;
+end
+function getFASTCaliberCenter()
+    %TODO
+end
+function getFASTCaliberCircle()
+    %TODO
+end
+function [X, Y, Z] = getVirtualSphere(R, R_FAST)
+    [r, t] = meshgrid(0:R_FAST, 0:0.02:2*pi);
+    X = r.*cos(t);
+    Y = r.*sin(t);
+    Z = - sqrt(R^2 - X.^2 - Y.^2);
+end
 
-function [x, y, z] = drawSource(a, b, r, k)
+%   DRAWs
+function drawFASTSphCenter()
+    plot3(0, 0, 0, 'or', 'markersize', 2);
+    text(0, 10, 0, 'C', 'color', 'r');
+end
+function drawFASTCaliberCenter()
+    %TODO
+end
+function drawFASTCaliberCircle()
+    %TODO
+end
+function drawVirtualSphere(X, Y, Z)
+    surf(X, Y, Z, 'FaceAlpha', 0.5, 'EdgeColor', 'none');
+end
+
+%% About Light Source
+% GETs
+function [x, y, z] = getSourcePoint(a, b, r)
     [x, y, z] = sph2cart(a, b, r);
+end
+function [sol_x, sol_y, sol_z] = getProjectionPoint(sourcePoint, R)
+    syms x y z k;
+    assume(z<0);
+    eqn1 = x == k*sourcePoint(1);
+    eqn2 = y == k*sourcePoint(2);
+    eqn3 = z == k*sourcePoint(3);
+    eqn4 = x^2 + y^2 + z^2 == R^2;
+    
+    sol = solve([eqn1 eqn2 eqn3 eqn4], [x y z k], 'Real', true);
+    sol_x=sol.x;	sol_y=sol.y;	sol_z=sol.z;   
+end
+% DRAWs
+function drawSourcePoint(x, y, z)
     plot3(x, y, z, '.y', 'markersize', 15);
     text(x, y+10, z, 'S', 'color', 'y');
-    line([x -k*x], [y -k*y], [z, -k*z],'color', 'y', 'LineStyle', '--');
 end
-
-function drawFocalHemi(r)
-    [x, y, z] = sphere;
-    x = x*r;
-    y = y*r;
-    z = z*r;
-    meshc(x,y,z);
+function drawProjectionPoint()
+    %TODO
 end
-
-function drawFeedbackCabin(S, r, r_cabin)
+function drawLightPath(sourcePoint, projPoint)
+    % Old Method:
+    % line([x -k*x], [y -k*y], [z, -k*z],'color', 'y', 'LineStyle', '--');
+    % -----------
+    x = [sourcePoint(1), projPoint(1)];
+    y = [sourcePoint(2), projPoint(2)];
+    z = [sourcePoint(3), projPoint(3)];
+    line(x, y, z, 'color', 'y', 'LineStyle', '--');
+    
+end
+%% About Feedback Cabin
+% GETs
+function [sol_x, sol_y, sol_z] = getCabinCenter(sourcePoint, r)
     syms x y z k
     assume(x<=0 & y<=0 & z<=0);
-    eqn1 = x == k*S(1);
-    eqn2 = y == k*S(2);
-    eqn3 = z == k*S(3);
+    eqn1 = x == k*sourcePoint(1);
+    eqn2 = y == k*sourcePoint(2);
+    eqn3 = z == k*sourcePoint(3);
     eqn4 = x^2 + y^2 + z^2 == r^2;
-    Sol = solve([eqn1 eqn2 eqn3 eqn4], [x y z k]);
-    cabinCenter = [Sol.x, Sol.y, Sol.z];
-    [X, Y, Z] = getCircle(S, r_cabin, cabinCenter);
+    sol = solve([eqn1 eqn2 eqn3 eqn4], [x y z k]);
+    sol_x=sol.x;	sol_y=sol.y;	sol_z=sol.z;
+end
+function [X, Y, Z] = getCabinCircle(cabinCenter, sourcePoint, r_cabin)
+    [X, Y, Z] = getCircle(cabinCenter, sourcePoint, r_cabin);
+end
+function [X, Y, Z] = getCabinDisk(cabinCenter, a, b, r_cabin)
+    [r, t] = meshgrid(0:r_cabin, 0:0.02:2*pi);
+    X = r.*cos(t);
+    Y = r.*sin(t);
+    Z = zeros(size(X,1), size(X,2)) + cabinCenter(3);
+end
+% DRAWs
+function drawCabinCenter()
+    %TODO
+end
+function drawCabinCircle(X, Y, Z)
     plot3(X, Y, Z,'color', 'b', 'LineWidth', 3);
-    text(Sol.x, Sol.y+10, Sol.z, 'Feedback Cabin', 'color', 'b', ...
+    text(X(1), Y(1), Z(1)+10, 'Feedback Cabin', 'color', 'b', ...
         'FontSize', 6, 'FontWeight', 'bold');
 end
-
-function [x, y, z] = drawCaliber(a, b, R)
-    [x, y, z] = sph2cart(a, b, -sqrt(3)/2*R);
-    [X, Y, Z] = getCircle([x, y, z], R/2, [x, y, z]);
-    plot3(X, Y, Z,'color', '#FFAAFF', 'LineWidth', 3);
-    text(X(1), Y(1), Z(1)+10, 'Paraboloid Caliber', 'color', '#FF55FF');
+function drawCabinDisk(X, Y, Z)
+    %   It appears that the disk is too small to find in the graphic, so we
+    % shifted to drawCabinCircle function instead of this one.
+    plot3(X, Y, Z, 'color', 'b');
+    text(X(1), Y(1), Z(1)+10, 'Feedback Cabin', 'color', 'b', ...
+      'FontSize', 6, 'FontWeight', 'bold');
+    
+    
 end
-
-function drawPara(R, F, a, b, caliberCenter)
-%draw the Paraboloid
-    %Create Scatter set
+%% About Paraboloid
+% GETs
+function [x, y, z] = getParaCaliberCenter(a, b, R)
+    [x, y, z] = sph2cart(a, b, -sqrt(3)/2*R);
+end
+function [X, Y, Z] = getParaCaliberCircle(paraClbCenter, r_pClb)
+    [X, Y, Z] = getCircle(paraClbCenter, paraClbCenter, r_pClb);
+end
+function [X, Y, Z] = getOptPara(R, F, paraClbCenter)
+    % Create Normal Paraboloid
     [r, t] = meshgrid(0:0.5*R, 0:0.02:2*pi);
     X = r.*cos(t);
     Y = r.*sin(t);
     Z = (X.^2 + Y.^2) / (4*F);
 
-    %Translate
-    [X, Y, Z] = curveTrans(X, Y, Z, caliberCenter, R);
+    % Translate
+    [X, Y, Z] = curveTrans(X, Y, Z, paraClbCenter, R);
     
-    %Coordinate System Rotation
-    
-    
-    %Draw Normal Para.
-    Para = surf(X, Y, Z, 'FaceAlpha', 0.5, 'EdgeColor', 'none');
-    
-%     %Rotate
-%     sphRotate(Para, a, b);
+    % Desserted Steps:
+    % 1. Coordinate System Rotation;
+    % 2. Sphere Rotation;
+end
+% DRAWs
+function drawParaCaliberCenter()
+    %TODO
+end
+function drawParaCaliberCircle(X, Y, Z)
+    plot3(X, Y, Z,'color', '#FFAAFF', 'LineWidth', 3);
+    text(X(1), Y(1), Z(1)+10, 'Paraboloid Caliber', 'color', '#FF55FF');
+end
+function drawOptPara(X, Y, Z)
+    surf(X, Y, Z, 'FaceAlpha', 0.5, 'EdgeColor', 'none');
 end
 
-function [X, Y, Z] = getCircle(n, r, c)
+%% TOOL FUNCTIONS
+function [X, Y, Z] = getCircle(c, n, r)
     theta=(0:2*pi/100:2*pi)'; %theta角从0到2*pi
     a=cross(n,[1 0 0]); %n与i叉乘，求取a向量
     if ~any(a) %如果a为零向量，将n与j叉乘
@@ -255,33 +322,7 @@ function [X, Y, Z] = getCircle(n, r, c)
     Y=C2+r*a(2)*cos(theta)+r*b(2)*sin(theta);%圆上各点的y坐标
     Z=C3+r*a(3)*cos(theta)+r*b(3)*sin(theta);%圆上各点的z坐标
 
-    
 end
-
-function sphRotate(fig, a, b)
-% rotate the fig with azimuth a and elevation b
-
-    %Create 2 sample vectors
-    [x1,y1,z1] = sph2cart(a,0,1);
-    [x2,y2,z2] = sph2cart(a,b,1);
-    vec1 = [x1,y1,z1];
-    vec2 = [x2,y2,z2];
-    
-%     %Obtain the Rotation Angle
-%     theta = acos(vec1*vec2' / (norm(vec1)*norm(vec2)) );
-%     theta_degree = theta*180/pi;
-    
-    %Obtain the Rotation Axis
-    syms x y;
-    eqn1 = [x,y,1]*vec1' == 0;
-    eqn2 = [x,y,1]*vec2' == 0; 
-    sol = solve([eqn1, eqn2], [x, y]);
-    direction = [sol.x,sol.y,1];
-    
-    %Rotation
-    rotate(fig, direction, b);
-end
-
 function [X, Y, Z] = curveTrans(X, Y, Z, direction, distance)
 %translate the curve
     %Normalize direction vector
@@ -295,5 +336,3 @@ function [X, Y, Z] = curveTrans(X, Y, Z, direction, distance)
     Y = Y + delta(2);
     Z = Z + delta(3);
 end
-%% 
-
