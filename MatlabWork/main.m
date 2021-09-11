@@ -1,5 +1,6 @@
-clc;
-clear;
+clc; clear;
+%% DATA IMPORT PART
+% Import the components
 global Nodes;
 global Actuators;
 global Reflectors;
@@ -7,7 +8,7 @@ importData('..\Problems\A\附件1.csv', '..\Problems\A\附件2.csv', ...
     '..\Problems\A\附件3.csv');
 
 %% PRETREATMENT PART
-%pre-definition
+% pre-definition
 R = 300;
 F = 0.466*R;
 r = R-F;
@@ -17,35 +18,57 @@ beta_degree = 90;
 % beta_degree = 78.169;
 r_cabin = 0.5;
 
-%pre-caculate
+% pre-caculate
 node_num = length(Nodes.ID);
 alpha = alpha_degree*pi/180;
 beta = beta_degree*pi/180;
 
 %% Caculation Part
 % About FAST
-getFASTSphCenter();
-getFASTCaliberCenter();
-getFASTCaliberCircle();
+    getFASTSphCenter();
+    getFASTCaliberCenter();
+    getFASTCaliberCircle();
 
 % About Light Source
-getSourcePoint();
-getProjectionPoint();
+    getSourcePoint();
+    getProjectionPoint();
 
 % About Feedback Cabin
-getCabinCenter();
-getCabinDisk();
+    getCabinCenter();
+    getCabinDisk();
 
 % About Paraboloid
-getParaCaliberCenter();
-getParaCaliberCircle();
-getOptPara();
+    getParaCaliberCenter();
+    getParaCaliberCircle();
+    getOptPara();
 
 
 %% Graphic Plot Part
 hold on
-draw
-drawNodes();
+% About Components
+    drawNodes();
+    drawActuators();
+    drawTiedownCables();
+    drawReflectors();
+
+% About FAST
+    drawFASTSphCenter();
+    % drawFASTCaliberCenter();
+    drawFASTCaliberCircle();
+
+% About Light Source
+    drawSourcePoint();
+    % drawProjectionPoint();
+    drawLightPath();
+
+% About Feedback Cabin
+    % drawCabinCenter();
+    drawCabinDisk();
+    
+% About Paraboloid
+    drawParaCaliberCenter();
+    drawParaCaliberCircle();
+    drawOptPara();
 
 %draw all the nodes
 plot3(Nodes.Pos(1:end, 1), Nodes.Pos(1:end, 2), Nodes.Pos(1:end, 3), ...
@@ -122,11 +145,11 @@ function importData(filepath1, filepath2, filepath3)
     opts.VariableTypes = {'string', 'double', 'double', 'double', ...
         'double', 'double', 'double'};
     opts.DataLines = [2, inf];
-    opts.SelectedVariableNames = [1];
+    opts.SelectedVariableNames = 1;
     Actuators.ID = readmatrix(filepath2, opts);
-    opts.SelectedVariableNames = [2:4];
+    opts.SelectedVariableNames = 2:4;
     Actuators.BottomPos = readmatrix(filepath2, opts);
-    opts.SelectedVariableNames = [5:7];
+    opts.SelectedVariableNames = 5:7;
     Actuators.TopPos = readmatrix(filepath2, opts);
     
     %import data about Reflector elements
