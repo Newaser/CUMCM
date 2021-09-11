@@ -10,10 +10,10 @@ importData('..\Problems\A\附件1.csv', '..\Problems\A\附件2.csv', ...
 R = 300;
 F = 0.466*R;
 r = R-F;
-% alpha = 0;
-% beta = 90;
-alpha_degree = 36.795;
-beta_degree = 78.169;
+alpha_degree = 0;
+beta_degree = 90;
+% alpha_degree = 36.795;
+% beta_degree = 78.169;
 r_cabin = 0.5;
 
 %pretreatment
@@ -174,15 +174,17 @@ function drawPara(R, F, a, b, caliberCenter)
     Y = r.*sin(t);
     Z = (X.^2 + Y.^2) / (4*F);
 
+    %Translate
+    [X, Y, Z] = curveTrans(X, Y, Z, caliberCenter, R);
+    
+    %Coordinate System Rotation
+    
     
     %Draw Normal Para.
     Para = surf(X, Y, Z, 'FaceAlpha', 0.5, 'EdgeColor', 'none');
     
-    %Rotate
-    sphRotate(Para, a, b);
-    
-    %Translate
-    %curveTrans(Para);
+%     %Rotate
+%     sphRotate(Para, a, b);
 end
 
 function [X, Y, Z] = getCircle(n, r, c)
@@ -210,14 +212,14 @@ function sphRotate(fig, a, b)
 % rotate the fig with azimuth a and elevation b
 
     %Create 2 sample vectors
-    [x1,y1,z1] = sph2cart(0,0,1);
+    [x1,y1,z1] = sph2cart(a,0,1);
     [x2,y2,z2] = sph2cart(a,b,1);
     vec1 = [x1,y1,z1];
     vec2 = [x2,y2,z2];
     
-    %Obtain the Rotation Angle
-    theta = acos(vec1*vec2' / (norm(vec1)*norm(vec2)) );
-    theta_degree = theta*180/pi;
+%     %Obtain the Rotation Angle
+%     theta = acos(vec1*vec2' / (norm(vec1)*norm(vec2)) );
+%     theta_degree = theta*180/pi;
     
     %Obtain the Rotation Axis
     syms x y;
@@ -227,10 +229,10 @@ function sphRotate(fig, a, b)
     direction = [sol.x,sol.y,1];
     
     %Rotation
-    rotate(fig, direction, theta_degree);
+    rotate(fig, direction, b);
 end
 
-function curveTrans(fig, direction, distance);
+function [X, Y, Z] = curveTrans(X, Y, Z, direction, distance)
 %translate the curve
     %Normalize direction vector
     direction = direction / norm(direction);
@@ -238,11 +240,9 @@ function curveTrans(fig, direction, distance);
     %Difference Value
     delta = direction * distance;
     
-    new_data = [get(fig,'xdata')+delta;
-                 get(fig,'ydata')+delta;
-                 get(fig,'zdata')+delta];
-    set(fig, 'xdata', new_data(1));
-    set(fig, 'ydata', new_data(2));
-    set(fig, 'zdata', new_data(3));
+    %Translate Pos
+    X = X + delta(1);
+    Y = Y + delta(2);
+    Z = Z + delta(3);
 end
 
