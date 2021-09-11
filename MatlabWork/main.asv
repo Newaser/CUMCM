@@ -13,10 +13,10 @@ R = 300;
 R_FAST = 500*0.5;
 F = 0.466*R;
 r = R-F;
-% alpha_degree = 0;
-% beta_degree = 90;
-alpha_degree = 36.795;
-beta_degree = 78.169;
+alpha_degree = 0;
+beta_degree = 90;
+% alpha_degree = 36.795;
+% beta_degree = 78.169;
 r_cabin = 1*0.5;
 sourceDist = 200;
 
@@ -86,7 +86,7 @@ hold on
     
 %% FUNCTION PART
 %% About Coordinate System
-function [a, b] = CoordSysTrans(a, b, node_num)
+function CoordSysTrans(a, b, node_num)
     global Nodes;
     global Actuators;
     
@@ -100,17 +100,11 @@ function [a, b] = CoordSysTrans(a, b, node_num)
           cos(b),	     0,  sin(b)];
       
     % Transform Coordinates of Nodes, Actuators' Tops, Actuators' Bottoms
-    try
-        for i = 1:node_num
-            Nodes.Pos(i,:) = (A*B*Nodes.Pos(i,:)')';
-            Actuators.TopPos(i,:) = (A*B*Actuators.TopPos(i,:)')';
-            Actuators.BottomPos(i,:) = (A*B*Actuators.BottomPos(i,:)')';
-        end
-    catch
-        disp("Warning: Coordinate System Transformation failed.");
-        return;
+    for i = 1:node_num
+        Nodes.Pos(i,:) = (A*B*Nodes.Pos(i,:)')';
+        Actuators.TopPos(i,:) = (A*B*Actuators.TopPos(i,:)')';
+        Actuators.BottomPos(i,:) = (A*B*Actuators.BottomPos(i,:)')';
     end
-    a = 0;  b = pi/2;
 end
 %% About Components
 function importData(filepath1, filepath2, filepath3)
