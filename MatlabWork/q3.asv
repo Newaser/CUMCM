@@ -1,0 +1,16 @@
+clear;  clc;
+
+R = 300;
+F = 0.466*R;
+t = 0:0.01:2*pi;
+x = R*cos(t);
+y = R*sin(t);
+eqn1 =      y + (2.*y.^2/R^2 - 1) .* sqrt((x-0.5).^2+(F-R-y).^2) > 0;
+eqn2 =      y + (2.*y.^2/R.^2 - 1) .* sqrt((x+0.5).^2+(F-R-y).^2) < 0;
+
+axis equal
+for i = 1:length(t)
+    if (y(i) + (2.*y(i).^2/R^2 - 1) * sqrt((x(i)-0.5).^2+(F-R-y(i)).^2) > 0) && (y(i) + (2*y(i).^2/R.^2 - 1) * sqrt((x(i)+0.5)^2+(F-R-y(i))^2) < 0)
+        plot(x(i), y(i));
+    end
+end

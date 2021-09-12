@@ -9,16 +9,18 @@ importComponents('..\Problems\A\附件1.csv', '..\Problems\A\附件2.csv', ...
 
 %% PRETREATMENT PART
 % Pre-definition
-R = 300;
-R_FAST = 500*0.5;
-F = 0.466*R;
-r = R-F;
-alpha_degree = 0;
-beta_degree = 90;
-% alpha_degree = 36.795;
-% beta_degree = 78.169;
+R = 300;    % Raduis of FAST sphere
+R_FAST = 500*0.5;   % Raduis of FAST's caliber
+F = 0.466*R;    % Half Focal Length of the Para.
+r = R-F;    % Raduis of focal sphere
+% alpha_degree = 0;
+% beta_degree = 90;
+alpha_degree = 36.795;
+beta_degree = 78.169;
 r_cabin = 1*0.5;
-sourceDist = 200;
+sourceDist = 200;   % Distance from light source to sphere center
+RMLim = 0.6;    % Radial Movement Limit
+SCERLim = 0.07*0.01;    % Steel Cable Elasticity Rate Limit
 
 % Pre-caculate
 node_num = length(Nodes.ID);
@@ -32,6 +34,7 @@ beta = beta_degree*pi/180;
 %% Caculation Part
 % About Components
     mdfNodes = getModifiableNodes(node_num, R);
+    Edges = getEdges(node_num);
 
 % About FAST
     % getFASTSphCenter();
@@ -56,9 +59,12 @@ beta = beta_degree*pi/180;
         getParaCaliberCircle([x_PClbC, y_PClbC, z_PClbC], R/2);
     [X_optP, Y_optP, Z_optP] = ...
         getOptPara(R, F, [x_PClbC, y_PClbC, z_PClbC]);
-
+%% Algorithm Part
+% Promblem 2: Radial Approaching Algorithm
+% DeltaRhos = RadialApproachingAlgo(mdfNodes, node_num, F, R, Edges, RMLim, SCERLim);
 %% Export Part
     exportModifiableNodes(mdfNodes, '.\Exports\modifiable_nodes.xlsx');
+    % writematrix(DeltaRhos, '.\Exports\delta_rhos.xlsx');
 %% Graphic Plot Part
 hold on
 % About Components
@@ -66,6 +72,7 @@ hold on
     drawActuators(node_num);
     drawTiedownCables(node_num);
     % drawReflectors(node_num); % Warning: ...
+    drawReflectors2(Edges);
 
 % About FAST
     drawFASTSphCenter();
@@ -88,7 +95,143 @@ hold on
     drawParaCaliberCircle(X_PClbCir, Y_PClbCir, Z_PClbCir);
     drawOptPara(X_optP, Y_optP, Z_optP);
     
+
+
+    
+    
+    
+    
+    
+    
+    
+    
 %% FUNCTION PART
+%% About Algorithm
+% About Problem 2:
+function delta_rhos = RadialApproachingAlgo(mdfNodes, node_num, F, R, Edges, ...
+    RMLim, SCERLim)
+% Algorithm ID: #1
+    global Nodes;
+%     Nodes.ID = mdfNodes.ID;
+%     Nodes.Pos = mdfNodes.Pos;
+%     node_num = mdfNodes.num;
+%     Edges = getEdges(node_num);
+
+    % Define n, m
+    n = node_num;
+    m = mdfNodes.num;
+    
+    % Get α β ρ1
+    [A, B, rho1] = cart2sph(Nodes.Pos(:,1),Nodes.Pos(:,2),Nodes.Pos(:,3));
+    A = A';
+    B = B';
+    rho1 = rho1';
+    
+    % Get IM, IE
+    IM = mdfNodes.Index;
+    IE = Edges.Index;
+    
+    % Get rhoPara
+    rhoPara = zeros(1,m);
+    cache_path = '.\Caches\Algorithms\#1_rhoPara.csv';
+    cached = true;
+    try readmatrix(cache_path);
+    catch ME
+        if strcmp(ME.identifier, 'MATLAB:textio:textio:FileNotFound')
+            cached = false;
+        end
+    end 
+    if cached
+        rhoPara = readmatrix(cache_path);
+    else
+        for i = 1:m
+            syms x
+            eqn1 =	4*F*R + 4*F*x*sin(B(IM(i))) == ...
+                    x^2 * cos(B(IM(i)))^2;
+            eqn2 =  x >= 0;
+            rhoPara(i) = solve([eqn1 eqn2], x, 'Real', true);
+        end
+        writematrix(rhoPara, cache_path);         
+    end
+        
+    % Optimal Problem %
+    % Optimal Vars:
+    d_rho = optimvar('d_rho', n, 'LowerBound',-RMLim,'UpperBound',RMLim);
+    
+    % ρ2
+    rho2 = rho1' + d_rho;
+    
+    % L1
+    L1 = zeros(n,1);
+    for idx = 1:n
+        a = IE(idx, 1);
+        b = IE(idx, 2);
+        L1(idx,1) = ...
+            sphDist([A(a), B(a), rho1(a)], [A(b), B(b), rho1(b)]);
+    end
+    
+    % L2
+    L2 = optimexpr(n);
+    for idx = 1:n
+        a = IE(idx, 1);
+        b = IE(idx, 2);
+        L2(idx,1) = ...
+            sphDist([A(a), B(a), rho2(a)], [A(b), B(b), rho2(b)]);
+    end
+        
+    % Objective Function
+    obj_fun = 0;
+    for i = 1:m
+        obj_fun = obj_fun + (rho2(IM(i),1) - rhoPara(i))^2;
+    end
+    
+    % Constraints
+    SCERUpperLim =  optimconstr(n,1);
+    SCERLowerLim =  optimconstr(n,1);
+    
+    for i = 1:n
+        SCERUpperLim(i) =  (L1(i)-L2(i)) / L1(i) <=  SCERLim;
+        SCERLowerLim(i) =  (L1(i)-L2(i)) / L1(i) >= -SCERLim;
+    end
+    
+    % Construct the Problem
+    prob = optimproblem;
+    prob.Objective = obj_fun;
+    prob.Constraints.SCERUpperLim = SCERUpperLim;
+    prob.Constraints.SCERLowerLim = SCERLowerLim;
+    
+    % Set Start Point
+    x0.d_rho = zeros(n,1);
+    
+    % Solve
+    sol = solve(prob, x0);
+    
+    %Return value
+    delta_rhos = sol.d_rho;
+    
+%   show(sol);
+    disp("OK");
+    
+
+%     function lenMatrix = L(rho_i)
+%     %Caculate length of edge
+%         % Edge Length Column Matrix
+%         lenMatrix = zeros(n,1);
+%         for idx = 1:n
+%             a = IE(idx, 1);
+%             b = IE(idx, 2);
+%             lenMatrix(idx,1) = ...
+%                 sphDist([A(a), B(a), rho_i(a)], [A(b), B(b), rho_i(b)]);
+%         end
+%     end
+% 
+%     function sum = obj_fun(rho)
+%         sum = 0;
+%         for c = 1:m
+%             sum = sum + (rho(IM(c),1) - rhoPara(c))^2;
+%         end
+%     end
+end
 %% About I/O
 %	Input
 function importComponents(filepath1, filepath2, filepath3)
@@ -144,7 +287,10 @@ end
 function [a, b] = CoordSysTrans(a, b, node_num)
     global Nodes;
     global Actuators;
+    log_path = '.\Caches\last_ab.txt';
     
+    % Reset some data
+    resetData();
     % Transformation Matrix A:
     A = [ cos(a),	sin(a),      0;
          -sin(a),	cos(a),      0;
@@ -165,14 +311,39 @@ function [a, b] = CoordSysTrans(a, b, node_num)
         disp("Warning: Coordinate System Transformation failed.");
         return;
     end
+    writematrix([a b], log_path);
     a = 0;  b = pi/2;
+    
+    function resetData()
+        % Delete caches of Algorithms
+        last_ab = readmatrix(log_path);
+        if (a-last_ab(1))^2 + (b-last_ab(2))^2 > 10^(-5)
+            rmdir('.\Caches\Algorithms', 's');
+            mkdir('.\Caches\Algorithms');
+        end       
+    end
 end
 %% About Components
+function movedNodes = moveNodes(node_num, IDs, destPos)
+    global Nodes;
+    
+    move_num = length(IDs);
+    movedNodes.ID = Nodes.ID;
+    movedNodes.Pos = Nodes.Pos;
+    for i = 1:move_num
+        for j = node_num
+            if strcmp(IDs(i), movedNodes.ID(i))
+                movedNodes.Pos(i,:) = destPos(i,:);
+            end
+        end
+    end
+end
 function mdfNodes = getModifiableNodes(node_num, R)
     global Nodes;
     
     mdfNodes.ID = strings(node_num);
     mdfNodes.Pos = zeros(node_num,3);
+    mdfNodes.Index = zeros(node_num);
     mdfNodes.num = 0;
     
     for i = 1:node_num
@@ -180,11 +351,91 @@ function mdfNodes = getModifiableNodes(node_num, R)
             mdfNodes.num = mdfNodes.num + 1;
             mdfNodes.ID(mdfNodes.num) = Nodes.ID(i);
             mdfNodes.Pos(mdfNodes.num,:) = Nodes.Pos(i,:);
+            mdfNodes.Index(mdfNodes.num) = i;
         end
     end
     
     mdfNodes.ID = mdfNodes.ID(1:mdfNodes.num);
     mdfNodes.Pos = mdfNodes.Pos(1:mdfNodes.num,:);
+    mdfNodes.Index = mdfNodes.Index(1:mdfNodes.num);
+end
+function Edges = getEdges(node_num)
+    global Nodes;
+    global Reflectors;
+    
+    % Init
+    Edges.IDs = strings(node_num*3,2);
+    Edges.Index = zeros(node_num*3,2);
+    Edges.num = 0;
+    cached = true;
+    
+    try readmatrix('.\Caches\edges.xlsx');
+    catch ME
+        if strcmp(ME.identifier, 'MATLAB:textio:textio:FileNotFound')
+            cached = false;
+        end
+    end
+    
+    if cached
+        Edges.num = readmatrix('.\Caches\edges.xlsx', 'Range', 'A1:A1');
+        Edges.Index = readmatrix('.\Caches\edges.xlsx', 'Range', 'B1');
+        
+        Edges.IDs = strings(Edges.num,2);
+        for i = 1:Edges.num
+            for j = [1 2]
+                Edges.IDs(i, j) = Nodes.ID(Edges.Index(i,j));
+            end
+        end
+    else
+        for i = 1:size(Reflectors,1)
+            for j = 1:3
+                vertex1 = Reflectors(i,j);
+                vertex2 = Reflectors(i, rem(j, 3) + 1);
+                if ~existsEdge([vertex1, vertex2])
+                    Edges.num = Edges.num + 1;
+                    Edges.IDs(Edges.num,:) = [vertex1, vertex2];
+                    Edges.Index(Edges.num,:) = ...
+                        [nodeIndex(vertex1), nodeIndex(vertex2)];
+                end
+            end
+        end
+
+        Edges.IDs = Edges.IDs(1:Edges.num,:);
+        Edges.Index = Edges.Index(1:Edges.num,:);
+        writematrix(Edges.num,'.\Caches\edges.xlsx', 'Range', 'A1:A1');
+        writematrix(Edges.Index,'.\Caches\edges.xlsx', 'Range', 'B1');
+        
+    end
+    
+    function idx = nodeIndex(nodeID)
+        for c = 1:node_num
+            if strcmp(nodeID, Nodes.ID(c))
+                idx = c;
+                return;
+            end
+        end
+        idx = 0;
+    end
+    function yes = existsEdge(e)
+        for a = 1:Edges.num
+            if edgeEqual(e, edge(a))
+                yes = true;
+                return;
+            end
+        end
+        yes = false;
+    end
+    function yes = edgeEqual(e1, e2)
+        if ( strcmp(e1(1),e2(1)) && strcmp(e1(2),e2(2)) ) || ...
+           ( strcmp(e1(1),e2(2)) && strcmp(e1(2),e2(1)) )
+            yes = true;
+        else
+            yes = false;
+        end
+    end
+    function e = edge(i)
+        e = Edges.IDs(i,:);
+    end
 end
 function drawNodes()
     global Nodes;
@@ -232,6 +483,15 @@ function drawReflectors(node_num)
             z = [vertexes(edge,3), vertexes(rem(edge, 3) + 1,3)];
             line(x, y, z, 'color', 'k');
         end
+    end
+end
+function drawReflectors2(Edges)
+    global Nodes;
+    for i = 1:Edges.num
+        x = [Nodes.Pos(Edges.Index(i,1),1), Nodes.Pos(Edges.Index(i,2),1)];
+        y = [Nodes.Pos(Edges.Index(i,1),2), Nodes.Pos(Edges.Index(i,2),2)];
+        z = [Nodes.Pos(Edges.Index(i,1),3), Nodes.Pos(Edges.Index(i,2),3)];
+        line(x, y, z, 'color', 'k', 'LineWidth', 0.5);
     end
 end
 %% About FAST
@@ -406,4 +666,9 @@ function [X, Y, Z] = curveTrans(X, Y, Z, direction, distance)
     X = X + delta(1);
     Y = Y + delta(2);
     Z = Z + delta(3);
+end
+function dist = sphDist(p1, p2)
+    [x1, y1, z1] = sph2cart(p1(1), p1(2), p1(3));
+    [x2, y2, z2] = sph2cart(p2(1), p2(2), p2(3));
+    dist = norm([x1, y1, z1]-[x2, y2, z2]);
 end
